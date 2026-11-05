@@ -8,7 +8,7 @@ import secrets
 import models
 from database import engine, SessionLocal, Base
 
-app = FastAPI(title="Professional Phone API")
+app = FastAPI(title="Phone 📱 info API")
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
@@ -31,7 +31,7 @@ def get_db():
         db.close()
 
 # =====================================================================
-# 1. THE PUBLIC API ENDPOINT (Includes Limits & Support Link)
+# 1. THE PUBLIC API ENDPOINT (Includes Limits & Discord Link)
 # =====================================================================
 @app.get("/api/infonumber")
 def get_info_by_number(
@@ -55,7 +55,7 @@ def get_info_by_number(
 
     if usage_record:
         if usage_record.hit_count >= key_record.request_limit:
-            raise HTTPException(status_code=429, detail=f"Daily limit reached. Upgrade or contact support: {DISCORD_LINK}")
+            raise HTTPException(status_code=429, detail=f"Daily limit reached. Contact support: {DISCORD_LINK}")
         usage_record.hit_count += 1
     else:
         new_log = models.APIUsageLog(api_key_id=key_record.id, usage_date=today, hit_count=1)
@@ -63,7 +63,6 @@ def get_info_by_number(
 
     db.commit()
     
-    # Calculate limit left
     current_usage = usage_record.hit_count if usage_record else 1
     limit_left = key_record.request_limit - current_usage
 
@@ -93,11 +92,11 @@ def get_info_by_number(
 
 
 # =====================================================================
-# 2. THE PROFESSIONAL ADMIN PANEL (MATCHING SCREENSHOT & FIXED LOGIN)
+# 2. THE PROFESSIONAL ADMIN PANEL
 # =====================================================================
 @app.get("/admin", response_class=HTMLResponse)
 def admin_panel(admin_session: str = Cookie(None)):
-    # If not logged in, show the login screen
+    # Login Screen
     if admin_session != "logged_in":
         return """
         <!DOCTYPE html>
@@ -128,7 +127,7 @@ def admin_panel(admin_session: str = Cookie(None)):
         </html>
         """
 
-    # If logged in, show the dashboard
+    # Dashboard
     html_content = """
     <!DOCTYPE html>
     <html lang="en">
@@ -373,8 +372,10 @@ def get_dashboard_data(admin_pass: str, db: Session = Depends(get_db)):
     
     total_keys = len(keys)
     active_keys = sum(1 for k in keys if k.is_active and k.expires_at > datetime.datetime.utcnow())
+    
     all_logs = db.query(models.APIUsageLog).all()
     total_calls = sum(log.hit_count for log in all_logs)
+    
     today_logs = db.query(models.APIUsageLog).filter(models.APIUsageLog.usage_date == today).all()
     today_calls = sum(log.hit_count for log in today_logs)
     
@@ -385,5 +386,8 @@ def get_dashboard_data(admin_pass: str, db: Session = Depends(get_db)):
             models.APIUsageLog.usage_date == today
         ).first()
         used_today = log.hit_count if log else 0
+        
         key_list.append({
-       
+            "key_string": key.key_string,
+            "expires_at": key.expires_at,
+            "request_limit":
