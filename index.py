@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Query, Depends, Form, Response, Cookie
+from fastapi import FastAPI, HTTPException, Query, Depends, Form, Cookie, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, String
 import datetime
@@ -8,13 +9,15 @@ import secrets
 import models
 from database import engine, SessionLocal, Base
 
-app = FastAPI(title="Phone 📱 info API")
+app = FastAPI(title="Professional Phone API")
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 DISCORD_LINK = "https://discord.gg/Qnfp2KZbW9"
 
-# Define the PhoneRecord table
+# ✅ Tell Python to look for the templates folder
+templates = Jinja2Templates(directory="templates")
+
 class PhoneRecord(Base):
     __tablename__ = "phone_numbers"
     mobile = Column(String(20), primary_key=True, index=True)
@@ -31,7 +34,7 @@ def get_db():
         db.close()
 
 # =====================================================================
-# 1. THE PUBLIC API ENDPOINT (Includes Limits & Discord Link)
+# 1. THE PUBLIC API ENDPOINT
 # =====================================================================
 @app.get("/api/infonumber")
 def get_info_by_number(
@@ -90,13 +93,11 @@ def get_info_by_number(
         "support_discord": DISCORD_LINK
     }
 
-
 # =====================================================================
-# 2. THE PROFESSIONAL ADMIN PANEL
+# 2. THE ADMIN PANEL
 # =====================================================================
 @app.get("/admin", response_class=HTMLResponse)
-def admin_panel(admin_session: str = Cookie(None)):
-    # Login Screen
+def admin_panel(request: Request, admin_session: str = Cookie(None)):
     if admin_session != "logged_in":
         return """
         <!DOCTYPE html>
@@ -126,224 +127,8 @@ def admin_panel(admin_session: str = Cookie(None)):
         </body>
         </html>
         """
-
-    # Dashboard
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>MARKETPLACE - Admin</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-            :root { --bg-body: #0a0a0a; --bg-sidebar: #000000; --bg-card: #111111; --border: #222222; --text-main: #e0e0e0; --text-muted: #888888; --primary: #00ff66; --accent: #3b82f6; --danger: #ef4444; }
-            * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-            body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; }
-            
-            .sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
-            .logo { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; color: white; margin-bottom: 30px; letter-spacing: 1px; }
-            .logo-icon { background: var(--primary); color: black; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-            .nav-item { padding: 12px; margin-bottom: 5px; border-radius: 6px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
-            .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
-            .nav-item.active { color: var(--primary); font-weight: 600; }
-            .nav-item.active::before { content: ''; display: inline-block; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; margin-right: 5px; }
-            
-            .user-profile { margin-top: auto; background: #111; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); }
-            .avatar { background: var(--primary); width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: black; font-weight: bold; }
-
-            .main-content { flex: 1; padding: 30px; overflow-y: auto; }
-            .header { margin-bottom: 30px; }
-            .header h1 { font-size: 1.4rem; color: white; font-weight: 600; }
-            .header p { color: var(--text-muted); font-size: 0.85rem; margin-top: 5px; }
-            
-            .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
-            .stat-card { background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: 8px; }
-            .stat-title { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; letter-spacing: 0.5px; }
-            .stat-value { font-size: 1.8rem; font-weight: 700; color: white; margin-bottom: 5px; }
-            .stat-sub { font-size: 0.7rem; color: var(--primary); }
-
-            .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 25px; margin-bottom: 20px; }
-            .card-title { font-size: 1rem; color: white; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-weight: 600; }
-            .form-group { margin-bottom: 15px; }
-            .form-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;}
-            input { width: 100%; padding: 12px; background: var(--bg-body); border: 1px solid var(--border); border-radius: 6px; color: white; font-size: 0.9rem; }
-            input:focus { outline: none; border-color: var(--primary); }
-            
-            .module-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-            .module-btn { background: var(--bg-body); border: 1px solid var(--border); padding: 15px 10px; border-radius: 6px; text-align: center; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; transition: 0.2s; }
-            .module-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(0, 255, 102, 0.05); }
-            .module-icon { font-size: 1.2rem; display: block; margin-bottom: 5px; }
-
-            .btn-primary { background: var(--primary); color: black; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; }
-            .btn-primary:hover { background: #00cc52; }
-            
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 15px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-            th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
-            .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; background: rgba(59, 130, 246, 0.1); color: var(--accent); }
-            .btn-delete { background: transparent; border: 1px solid var(--danger); color: var(--danger); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
-            .btn-delete:hover { background: var(--danger); color: white; }
-        </style>
-    </head>
-    <body>
-
-        <div class="sidebar">
-            <div class="logo"><div class="logo-icon">M</div> MARKETPLACE</div>
-            <div class="nav-item active">Dashboard</div>
-            <div class="nav-item">API Keys</div>
-            <div class="nav-item">Analytics</div>
-            <div class="nav-item">Users</div>
-            <div class="nav-item">Servers</div>
-            <div class="nav-item">Activity</div>
-            <div class="nav-item">Settings</div>
-            
-            <div class="user-profile">
-                <div class="avatar">A</div>
-                <div>
-                    <div style="font-size: 0.8rem; color: white; font-weight: 600;">admin</div>
-                    <div style="font-size: 0.65rem; color: var(--text-muted);">Administrator</div>
-                </div>
-                <div style="margin-left: auto; cursor:pointer;" onclick="window.location.href='/admin/logout'"><span style="color:var(--text-muted); font-size:0.8rem;">⏻</span></div>
-            </div>
-        </div>
-
-        <div class="main-content">
-            <div class="header">
-                <h1>Good Morning, Admin</h1>
-                <p>Here's what's happening today</p>
-            </div>
-
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-title">TOTAL KEYS <span>🔑</span></div>
-                    <div class="stat-value" id="stat-total">0</div>
-                    <div class="stat-sub" id="stat-active">0 active</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">ACTIVE KEYS <span>✅</span></div>
-                    <div class="stat-value" id="stat-active-val">0</div>
-                    <div class="stat-sub">100% utilization</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">TOTAL API CALLS <span>➔</span></div>
-                    <div class="stat-value" id="stat-total-calls">0</div>
-                    <div class="stat-sub">+0 today</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">TODAY'S CALLS <span>📅</span></div>
-                    <div class="stat-value" id="stat-today-calls">0</div>
-                    <div class="stat-sub">0% of total</div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title"><span>+</span> Create API Key</div>
-                
-                <div class="form-group">
-                    <label>API KEY</label>
-                    <input type="text" id="clientName" placeholder="Enter unique API key">
-                </div>
-
-                <div class="module-grid">
-                    <div class="module-btn active"><span class="module-icon">📞</span>NUMBER</div>
-                    <div class="module-btn"><span class="module-icon">🆔</span>AADHAAR</div>
-                    <div class="module-btn"><span class="module-icon">📄</span>RATION</div>
-                    <div class="module-btn"><span class="module-icon">🚗</span>VEHICLE</div>
-                    <div class="module-btn"><span class="module-icon">🏢</span>TOGNUM</div>
-                    <div class="module-btn"><span class="module-icon">🚙</span>VEHICLE</div>
-                    <div class="module-btn"><span class="module-icon">🏦</span>IFSC</div>
-                    <div class="module-btn"><span class="module-icon">📍</span>PINCODE</div>
-                </div>
-
-                <div class="form-group">
-                    <label>DAILY LIMIT</label>
-                    <input type="number" id="limit" value="100">
-                </div>
-
-                <div class="form-group">
-                    <label>EXPIRY TYPE</label>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-                        <div class="module-btn">⏱ Demo (Hours)</div>
-                        <div class="module-btn">⭐ Premium (Days)</div>
-                        <div class="module-btn active">📅 Custom Date</div>
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-top: 10px;">
-                    <label>EXPIRY (DAYS)</label>
-                    <input type="number" id="validity" value="30">
-                </div>
-
-                <button class="btn-primary" onclick="createKey()">🚀 Create Key</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title"><span>📋</span> All API Keys</div>
-                <table id="keysTable">
-                    <thead>
-                        <tr><th>API KEY</th><th>EXPIRES</th><th>LIMIT</th><th>USED TODAY</th><th>ACTION</th></tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        <script>
-            window.onload = function() { loadData(); };
-
-            async function loadData() {
-                const res = await fetch('/admin/get_dashboard_data?admin_pass=admin123');
-                const data = await res.json();
-                
-                if(!res.ok) return;
-
-                document.getElementById('stat-total').innerText = data.stats.total_keys;
-                document.getElementById('stat-active').innerText = data.stats.active_keys + " active";
-                document.getElementById('stat-active-val').innerText = data.stats.active_keys;
-                document.getElementById('stat-total-calls').innerText = data.stats.total_calls;
-                document.getElementById('stat-today-calls').innerText = data.stats.today_calls;
-
-                const tbody = document.querySelector('#keysTable tbody');
-                tbody.innerHTML = "";
-                data.keys.forEach(item => {
-                    const expDate = new Date(item.expires_at).toLocaleDateString();
-                    tbody.innerHTML += '<tr>' +
-                        '<td><b>' + item.key_string + '</b></td>' +
-                        '<td>' + expDate + '</td>' +
-                        '<td>' + item.request_limit + '</td>' +
-                        '<td><span class="badge">' + item.used_today + '</span></td>' +
-                        '<td><button class="btn-delete" onclick="deleteKey(\'' + item.key_string + '\')">Delete</button></td>' +
-                        '</tr>';
-                });
-            }
-
-            async function createKey() {
-                const name = document.getElementById('clientName').value;
-                const limit = document.getElementById('limit').value;
-                const days = document.getElementById('validity').value;
-                
-                if(!name) { alert("Enter an API Name"); return; }
-
-                const res = await fetch('/admin/generate_key?owner_name=' + name + '&request_limit=' + limit + '&validity_days=' + days + '&admin_pass=admin123', { method: 'POST' });
-                const data = await res.json();
-                if(res.ok) {
-                    alert("API Key Created: " + data.api_key);
-                    document.getElementById('clientName').value = "";
-                    loadData();
-                } else { alert("Error: " + data.detail); }
-            }
-
-            async function deleteKey(keyName) {
-                if(!confirm("Delete this key?")) return;
-                const res = await fetch('/admin/delete_key?key_name=' + keyName + '&admin_pass=admin123', { method: 'DELETE' });
-                if(res.ok) { loadData(); }
-            }
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
+    
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 @app.post("/admin/login")
 def login(username: str = Form(...), password: str = Form(...)):
@@ -372,10 +157,8 @@ def get_dashboard_data(admin_pass: str, db: Session = Depends(get_db)):
     
     total_keys = len(keys)
     active_keys = sum(1 for k in keys if k.is_active and k.expires_at > datetime.datetime.utcnow())
-    
     all_logs = db.query(models.APIUsageLog).all()
     total_calls = sum(log.hit_count for log in all_logs)
-    
     today_logs = db.query(models.APIUsageLog).filter(models.APIUsageLog.usage_date == today).all()
     today_calls = sum(log.hit_count for log in today_logs)
     
@@ -390,4 +173,44 @@ def get_dashboard_data(admin_pass: str, db: Session = Depends(get_db)):
         key_list.append({
             "key_string": key.key_string,
             "expires_at": key.expires_at,
-            "request_limit":
+            "request_limit": key.request_limit,
+            "used_today": used_today
+        })
+        
+    return {
+        "stats": {
+            "total_keys": total_keys,
+            "active_keys": active_keys,
+            "total_calls": total_calls,
+            "today_calls": today_calls
+        },
+        "keys": key_list
+    }
+
+@app.post("/admin/generate_key")
+def generate_key(owner_name: str, request_limit: int, validity_days: int, admin_pass: str, db: Session = Depends(get_db)):
+    if admin_pass != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Wrong Admin Password")
+    existing_key = db.query(models.APIKey).filter(models.APIKey.key_string == owner_name).first()
+    if existing_key:
+        raise HTTPException(status_code=400, detail="This API Key Name already exists.")
+    expires = datetime.datetime.utcnow() + datetime.timedelta(days=validity_days)
+    db_key = models.APIKey(key_string=owner_name, owner_name=owner_name, expires_at=expires, request_limit=request_limit)
+    db.add(db_key)
+    db.commit()
+    return {"status": "success", "api_key": owner_name}
+
+@app.delete("/admin/delete_key")
+def delete_key(key_name: str, admin_pass: str, db: Session = Depends(get_db)):
+    if admin_pass != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Wrong Admin Password")
+    key_record = db.query(models.APIKey).filter(models.APIKey.key_string == key_name).first()
+    if not key_record:
+        raise HTTPException(status_code=404, detail="Key not found")
+    db.delete(key_record)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/")
+def home():
+    return {"status": "Online"}
