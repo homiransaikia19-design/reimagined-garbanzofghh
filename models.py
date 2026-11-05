@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, ForeignKey
+from sqlalchemy.orm import relationship
 from database import Base
 
 class APIKey(Base):
@@ -9,6 +10,9 @@ class APIKey(Base):
     expires_at = Column(DateTime)
     is_active = Column(Boolean, default=True)
     request_limit = Column(Integer, default=1000)
+    
+    # This tells the database to delete usage logs if the API key is deleted
+    logs = relationship("APIUsageLog", backref="api_key", cascade="all, delete-orphan")
 
 class APIUsageLog(Base):
     __tablename__ = "api_usage_logs"
