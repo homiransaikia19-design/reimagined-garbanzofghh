@@ -1,13 +1,18 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, ForeignKey
 from database import Base
-import datetime
 
 class APIKey(Base):
     __tablename__ = "api_keys"
-
     id = Column(Integer, primary_key=True, index=True)
-    key_string = Column(String, unique=True, index=True)
-    owner_name = Column(String)
+    key_string = Column(String(100), unique=True, index=True)
+    owner_name = Column(String(255))
     expires_at = Column(DateTime)
     is_active = Column(Boolean, default=True)
-    total_requests = Column(Integer, default=0)
+    request_limit = Column(Integer, default=1000)
+
+class APIUsageLog(Base):
+    __tablename__ = "api_usage_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    api_key_id = Column(Integer, ForeignKey("api_keys.id"))
+    usage_date = Column(Date)
+    hit_count = Column(Integer, default=0)
