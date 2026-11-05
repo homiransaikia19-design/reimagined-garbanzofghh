@@ -1,14 +1,14 @@
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, String, func
+from sqlalchemy import Column, String
 import datetime
 import secrets
 
 import models
 from database import engine, SessionLocal, Base
 
-app = FastAPI(title="ph to info api powered by shot")
+app = FastAPI(title="Professional Phone API")
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
@@ -64,12 +64,21 @@ def get_info_by_number(
 
     record = db.query(PhoneRecord).filter(PhoneRecord.mobile == number).first()
     if record:
-        return {"status": "success", "data": {"mobile": record.mobile, "name": record.name, "address": record.address, "pincode": record.pincode, "city": record.city}}
+        return {
+            "status": "success", 
+            "data": {
+                "mobile": record.mobile, 
+                "name": record.name, 
+                "address": record.address, 
+                "pincode": record.pincode, 
+                "city": record.city
+            }
+        }
     return {"status": "error", "message": "Number not found"}
 
 
 # =====================================================================
-# 2. THE PROFESSIONAL ADMIN PANEL (MATCHING YOUR SCREENSHOT)
+# 2. THE PROFESSIONAL ADMIN PANEL
 # =====================================================================
 @app.get("/admin", response_class=HTMLResponse)
 def admin_panel():
@@ -86,7 +95,6 @@ def admin_panel():
             * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
             body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; }
             
-            /* Sidebar */
             .sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
             .logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; color: white; margin-bottom: 30px; }
             .logo-icon { background: var(--primary); width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
@@ -94,21 +102,18 @@ def admin_panel():
             .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
             .nav-item.active { background: rgba(35, 134, 54, 0.1); color: var(--primary); font-weight: 600; border-left: 3px solid var(--primary); }
 
-            /* Main Content */
             .main-content { flex: 1; padding: 30px; overflow-y: auto; }
             .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
             .header h1 { font-size: 1.5rem; color: white; }
             .header p { color: var(--text-muted); font-size: 0.9rem; }
             .btn-logout { background: transparent; border: 1px solid var(--border); color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
             
-            /* Stats Grid */
             .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
             .stat-card { background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: 8px; }
             .stat-title { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; }
             .stat-value { font-size: 1.8rem; font-weight: 700; color: white; margin-bottom: 5px; }
             .stat-sub { font-size: 0.75rem; color: var(--primary); }
 
-            /* Forms and Tables */
             .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
             .card-title { font-size: 1.1rem; color: white; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
             .form-group { margin-bottom: 15px; }
@@ -130,7 +135,6 @@ def admin_panel():
             .btn-delete { background: transparent; border: 1px solid var(--danger); color: var(--danger); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
             .btn-delete:hover { background: var(--danger); color: white; }
 
-            /* Login Box */
             .login-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-body); display: flex; align-items: center; justify-content: center; z-index: 1000; }
             .login-box { background: var(--bg-card); border: 1px solid var(--border); padding: 40px; border-radius: 12px; width: 100%; max-width: 400px; }
             .login-box h2 { color: white; margin-bottom: 20px; text-align: center; }
@@ -156,7 +160,6 @@ def admin_panel():
 
         <!-- DASHBOARD -->
         <div id="dashboard" style="display: none; width: 100%; display: flex;">
-            <!-- SIDEBAR -->
             <div class="sidebar">
                 <div class="logo"><div class="logo-icon">M</div> MARKETPLACE</div>
                 <div class="nav-item active">Dashboard</div>
@@ -169,7 +172,6 @@ def admin_panel():
                 </div>
             </div>
 
-            <!-- MAIN CONTENT -->
             <div class="main-content">
                 <div class="header">
                     <div>
@@ -178,7 +180,6 @@ def admin_panel():
                     </div>
                 </div>
 
-                <!-- STATS ROW -->
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-title">TOTAL KEYS <span style="color:var(--primary);">🔑</span></div>
@@ -202,7 +203,6 @@ def admin_panel():
                     </div>
                 </div>
 
-                <!-- CREATE API KEY FORM -->
                 <div class="card">
                     <div class="card-title"><span style="color:var(--primary);">+</span> Create API Key</div>
                     
@@ -233,7 +233,6 @@ def admin_panel():
                     <button class="btn-primary" onclick="createKey()">🚀 Create Key</button>
                 </div>
 
-                <!-- ALL API KEYS TABLE -->
                 <div class="card">
                     <div class="card-title">📋 All API Keys</div>
                     <table id="keysTable">
@@ -247,7 +246,6 @@ def admin_panel():
         </div>
 
         <script>
-            // Check if already logged in
             window.onload = function() {
                 if (localStorage.getItem('adminPass') === "admin123") {
                     showDashboard();
@@ -277,32 +275,28 @@ def admin_panel():
 
             async function loadData() {
                 const pass = localStorage.getItem('adminPass');
-                const res = await fetch(`/admin/get_dashboard_data?admin_pass=${pass}`);
+                const res = await fetch('/admin/get_dashboard_data?admin_pass=' + pass);
                 const data = await res.json();
                 
                 if(!res.ok) return;
 
-                // Update Stats
                 document.getElementById('stat-total').innerText = data.stats.total_keys;
                 document.getElementById('stat-active').innerText = data.stats.active_keys + " Active";
                 document.getElementById('stat-active-val').innerText = data.stats.active_keys;
                 document.getElementById('stat-total-calls').innerText = data.stats.total_calls;
                 document.getElementById('stat-today-calls').innerText = data.stats.today_calls;
 
-                // Update Table
                 const tbody = document.querySelector('#keysTable tbody');
                 tbody.innerHTML = "";
                 data.keys.forEach(item => {
                     const expDate = new Date(item.expires_at).toLocaleDateString();
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><b>${item.key_string}</b></td>
-                            <td>${expDate}</td>
-                            <td>${item.request_limit}</td>
-                            <td><span class="badge">${item.used_today} hits</span></td>
-                            <td><button class="btn-delete" onclick="deleteKey('${item.key_string}')">Delete</button></td>
-                        </tr>
-                    `;
+                    tbody.innerHTML += '<tr>' +
+                        '<td><b>' + item.key_string + '</b></td>' +
+                        '<td>' + expDate + '</td>' +
+                        '<td>' + item.request_limit + '</td>' +
+                        '<td><span class="badge">' + item.used_today + ' hits</span></td>' +
+                        '<td><button class="btn-delete" onclick="deleteKey(\'' + item.key_string + '\')">Delete</button></td>' +
+                        '</tr>';
                 });
             }
 
@@ -314,11 +308,11 @@ def admin_panel():
                 
                 if(!name) { alert("Enter an API Name"); return; }
 
-                const res = await fetch(`/admin/generate_key?owner_name=${name}&request_limit=${limit}&validity_days=${days}&admin_pass=${pass}`, { method: 'POST' });
+                const res = await fetch('/admin/generate_key?owner_name=' + name + '&request_limit=' + limit + '&validity_days=' + days + '&admin_pass=' + pass, { method: 'POST' });
                 const data = await res.json();
                 if(res.ok) {
                     alert("API Key Created: " + data.api_key);
-                    document.getElementById('clientName').value = ""; // Clear input
+                    document.getElementById('clientName').value = "";
                     loadData();
                 } else { alert("Error: " + data.detail); }
             }
@@ -326,7 +320,7 @@ def admin_panel():
             async function deleteKey(keyName) {
                 const pass = localStorage.getItem('adminPass');
                 if(!confirm("Delete this key?")) return;
-                const res = await fetch(`/admin/delete_key?key_name=${keyName}&admin_pass=${pass}`, { method: 'DELETE' });
+                const res = await fetch('/admin/delete_key?key_name=' + keyName + '&admin_pass=' + pass, { method: 'DELETE' });
                 if(res.ok) { loadData(); }
             }
         </script>
@@ -335,8 +329,9 @@ def admin_panel():
     """
     return HTMLResponse(content=html_content)
 
+
 # =====================================================================
-# 3. NEW ENDPOINT: FOR DASHBOARD STATS AND TABLE
+# 3. DASHBOARD DATA ENDPOINTS
 # =====================================================================
 @app.get("/admin/get_dashboard_data")
 def get_dashboard_data(admin_pass: str, db: Session = Depends(get_db)):
@@ -344,22 +339,17 @@ def get_dashboard_data(admin_pass: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Wrong Password")
     
     today = datetime.date.today()
-    
-    # 1. Get all keys
     keys = db.query(models.APIKey).all()
-    total_keys = len(keys)
     
-    # 2. Get active keys (not expired and is_active)
+    total_keys = len(keys)
     active_keys = sum(1 for k in keys if k.is_active and k.expires_at > datetime.datetime.utcnow())
     
-    # 3. Calculate total calls and today's calls from logs
     all_logs = db.query(models.APIUsageLog).all()
     total_calls = sum(log.hit_count for log in all_logs)
     
     today_logs = db.query(models.APIUsageLog).filter(models.APIUsageLog.usage_date == today).all()
     today_calls = sum(log.hit_count for log in today_logs)
     
-    # 4. Format keys for the table
     key_list = []
     for key in keys:
         log = db.query(models.APIUsageLog).filter(
@@ -401,4 +391,14 @@ def generate_key(owner_name: str, request_limit: int, validity_days: int, admin_
 @app.delete("/admin/delete_key")
 def delete_key(key_name: str, admin_pass: str, db: Session = Depends(get_db)):
     if admin_pass != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Wrong Admin Passw
+        raise HTTPException(status_code=401, detail="Wrong Admin Password")
+    key_record = db.query(models.APIKey).filter(models.APIKey.key_string == key_name).first()
+    if not key_record:
+        raise HTTPException(status_code=404, detail="Key not found")
+    db.delete(key_record)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/")
+def home():
+    return {"status": "Online"}
