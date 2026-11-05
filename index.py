@@ -12,8 +12,8 @@ from database import engine, SessionLocal, Base
 
 app = FastAPI(title="Phone Info API", description="API for looking up numbers with Admin Control")
 
-# ✅ FIXED: Look inside your 'templates' folder
-templates = Jinja2Templates(directory="templates")
+# ✅ FIXED: Look in the root folder (".") because your admin.html is not in a 'templates' folder
+templates = Jinja2Templates(directory=".")
 
 # Admin Secret Password
 ADMIN_PASSWORD = "admin123"
